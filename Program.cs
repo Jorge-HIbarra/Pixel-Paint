@@ -63,6 +63,22 @@ static void DrawLineDDA(int x1, int y1, int x2, int y2, Color color, Color[,] gr
         x += xInc; y += yInc;
     }
 }
+static void Rellenar(Color[,] dibujo, int fila, int columna, Color colorObjetivo, Color colorNuevo, int filas, int columnas)
+{
+    if (colorObjetivo.Equals(colorNuevo)) return;
+
+    if (fila < 0 || fila >= filas || columna < 0 || columna >= columnas) return;
+
+    if (!dibujo[fila, columna].Equals(colorObjetivo)) return;
+
+    dibujo[fila, columna] = colorNuevo;
+
+    Rellenar(dibujo, fila - 1, columna, colorObjetivo, colorNuevo, filas, columnas); 
+    Rellenar(dibujo, fila + 1, columna, colorObjetivo, colorNuevo, filas, columnas); 
+    Rellenar(dibujo, fila, columna - 1, colorObjetivo, colorNuevo, filas, columnas); 
+    Rellenar(dibujo, fila, columna + 1, colorObjetivo, colorNuevo, filas, columnas); 
+}
+
 
 while (!Raylib.WindowShouldClose())
 {
@@ -71,7 +87,6 @@ while (!Raylib.WindowShouldClose())
 
     System.Numerics.Vector2 mouse = Raylib.GetMousePosition();
 
-
     if (Raylib.IsKeyPressed(KeyboardKey.C))
     {
         for (int r = 0; r < gridSize; r++)
@@ -79,13 +94,16 @@ while (!Raylib.WindowShouldClose())
                 grid[r, c] = Color.RayWhite;
     }
 
-   
     if (Raylib.IsKeyPressed(KeyboardKey.M))
     {
-        currentMode = (currentMode == DrawMode.Line) ? DrawMode.Brush : DrawMode.Line;
+        currentMode = currentMode switch
+        {
+            DrawMode.Line  => DrawMode.Brush,
+            DrawMode.Brush => DrawMode.Bucket,
+            _              => DrawMode.Line
+        };
     }
 
-  
     if (Raylib.CheckCollisionPointRec(mouse, new Rectangle(gridX, gridY, gridW, gridH)))
     {
         int col = (int)((mouse.X - gridX) / cellSize);
@@ -96,11 +114,15 @@ while (!Raylib.WindowShouldClose())
             string coords = $"[{col},{row}]";
             Raylib.DrawText(coords, palX, palY0 + colors.Length * palGap + 80, 30, Color.Black);
 
-            string modeText = currentMode == DrawMode.Line ? "Line mode [M]" : "Brush mode [M]";
+            string modeText = currentMode switch
+            {
+                DrawMode.Line  => "Line mode [M]",
+                DrawMode.Brush => "Brush mode [M]",
+                _              => "Bucket mode [M]"
+            };
             Raylib.DrawText(modeText, palX, palY0 + colors.Length * palGap + 120, 20, Color.DarkGray);
         }
     }
-
 
     for (int i = 0; i < colors.Length; i++)
     {
@@ -121,7 +143,6 @@ while (!Raylib.WindowShouldClose())
         }
     }
 
-
     if (Raylib.CheckCollisionPointRec(mouse, new Rectangle(gridX, gridY, gridW, gridH)))
     {
         int col = (int)((mouse.X - gridX) / cellSize);
@@ -131,7 +152,6 @@ while (!Raylib.WindowShouldClose())
         {
             if (currentMode == DrawMode.Line)
             {
-          
                 if (Raylib.IsMouseButtonPressed(MouseButton.Left))
                 {
                     startX = col;
@@ -147,20 +167,25 @@ while (!Raylib.WindowShouldClose())
                     startY = -1;
                 }
             }
-            else
+            else if (currentMode == DrawMode.Brush)
             {
-           
                 if (Raylib.IsMouseButtonDown(MouseButton.Left))
                     grid[row, col] = colorSeleccionado;
             }
+            else
+            {
+                if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+                {
+                    Color colorObjetivo = grid[row, col];
+                    Rellenar(grid, row, col, colorObjetivo, colorSeleccionado, gridSize, gridSize);
+                }
+            }
 
-           
             if (Raylib.IsMouseButtonPressed(MouseButton.Right))
                 grid[row, col] = Color.RayWhite;
         }
     }
 
-  
     for (int r = 0; r < gridSize; r++)
     {
         for (int c = 0; c < gridSize; c++)
@@ -173,7 +198,6 @@ while (!Raylib.WindowShouldClose())
         }
     }
     Raylib.DrawRectangleLines(gridX, gridY, gridW, gridH, Color.Black);
-
 
     for (int i = 0; i < colors.Length; i++)
     {
@@ -208,7 +232,6 @@ while (!Raylib.WindowShouldClose())
         }
     }
 
-   
     Color cA = indexA >= 0 ? colors[indexA] : Color.RayWhite;
     Color cB = indexB >= 0 ? colors[indexB] : Color.RayWhite;
 
@@ -219,34 +242,31 @@ while (!Raylib.WindowShouldClose())
     Color blended = new Color(mr, mg, mb, (byte)255);
     string blendedHex = $"#{blended.R:X2}{blended.G:X2}{blended.B:X2}";
 
-  
     const int indSize = 36;
     const int indGap = 20;
-    int indX = palX + palW + 120;
-    int indY = palY0;
+    int indTotalW = indSize * 3 + indGap * 2;
+    int indX = (1200 - indTotalW) / 2;
+    int indY = 800;
 
-  
     Raylib.DrawRectangleRec(new Rectangle(indX, indY, indSize, indSize), cA);
     Raylib.DrawRectangleLinesEx(new Rectangle(indX, indY, indSize, indSize), 1, Color.Gray);
     Raylib.DrawText("A", indX + 4, indY + 4, 20, Color.Black);
 
-   
     int indXMid = indX + indSize + indGap;
     Raylib.DrawRectangleRec(new Rectangle(indXMid, indY, indSize, indSize), blended);
     Raylib.DrawRectangleLinesEx(new Rectangle(indXMid, indY, indSize, indSize), 1, Color.Gray);
-
 
     int indXEnd = indXMid + indSize + indGap;
     Raylib.DrawRectangleRec(new Rectangle(indXEnd, indY, indSize, indSize), cB);
     Raylib.DrawRectangleLinesEx(new Rectangle(indXEnd, indY, indSize, indSize), 1, Color.Gray);
     Raylib.DrawText("B", indXEnd + 4, indY + 4, 20, Color.Black);
 
-
-    Raylib.DrawText(blendedHex, indXMid - 10, indY + indSize + 8, 14, Color.Black);
+    int hexW = Raylib.MeasureText(blendedHex, 14);
+    Raylib.DrawText(blendedHex, indXMid + (indSize - hexW) / 2, indY + indSize + 8, 14, Color.Black);
 
     Raylib.EndDrawing();
 }
 
 Raylib.CloseWindow();
 
-enum DrawMode { Line, Brush }
+enum DrawMode { Line, Brush, Bucket }
